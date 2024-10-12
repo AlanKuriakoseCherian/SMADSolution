@@ -1,0 +1,55 @@
+﻿<Window x:Class="SMADProject.ProductionMonitoringPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SMADProject"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        mc:Ignorable="d"
+        Title="Production Monitoring Page" Height="600" Width="800">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="300"/>
+            <RowDefinition Height="300"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Grid.Row="0">
+            <TextBlock Text="Select Production Line:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <ComboBox Width="150" 
+                      ItemsSource="{Binding ProductionLines}" 
+                      SelectedItem="{Binding SelectedProductionLine}" 
+                      DisplayMemberPath="LineName" 
+                      Margin="0,0,20,0"/>
+
+            <TextBlock Text="Start Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding StartDate}" Margin="0,0,20,0"/>
+
+            <TextBlock Text="End Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding EndDate}" Margin="0,0,20,0"/>
+
+            <Button Content="Filter" 
+                    Width="100" 
+                    Command="{Binding FilterCommand}"/>
+        </StackPanel>
+
+        <DataGrid Name="ProductionMetricsDataGrid" 
+                  Grid.Row="1" 
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True" 
+                  ItemsSource="{Binding ProductionMetrics}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Date" Binding="{Binding MetricDate}" Width="120"/>
+                <DataGridTextColumn Header="Production Rate" Binding="{Binding ProductionRate}" Width="120"/>
+                <DataGridTextColumn Header="Efficiency (%)" Binding="{Binding Efficiency}" Width="100"/>
+                <DataGridTextColumn Header="Quality Rate (%)" Binding="{Binding QualityRate}" Width="100"/>
+                <DataGridTextColumn Header="Downtime (hrs)" Binding="{Binding Downtime}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <oxy:PlotView Model="{Binding PlotModel}" Grid.Row="2" Margin="0,10,0,0" Height="200" Visibility="Visible"/>
+
+    </Grid>
+</Window>
