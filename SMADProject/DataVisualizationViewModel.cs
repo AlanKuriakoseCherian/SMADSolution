@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -112,7 +112,6 @@ namespace SMADProject.ViewModels
                 if (data.Count == 0)
                 {
                     Console.WriteLine("No data found for the selected line and date range.");
-                    // Optional: You can call UpdatePlotModel with some test data here
                     UpdatePlotModel(new List<ProductionMetric>()); // Clear the graph if no data
                     return;
                 }
@@ -124,29 +123,66 @@ namespace SMADProject.ViewModels
 
         private void UpdatePlotModel(List<ProductionMetric> data)
         {
-            PlotModel = new PlotModel { Title = "Production Metrics" };
-            var lineSeries = new LineSeries { Title = "Production Rate" };
+            try
+            {
+                // Initialize a new PlotModel
+                var newPlotModel = new PlotModel { Title = "Production Metrics" };
 
-            // If data is empty, you can add test points for verification
-            if (data.Count == 0)
-            {
-                // Hardcoded test data for verification
-                lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now.AddDays(-2)), 50));
-                lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now.AddDays(-1)), 75));
-                lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), 100));
-            }
-            else
-            {
-                foreach (var item in data)
+                // Create and configure the line series
+                var lineSeries = new LineSeries { Title = "Production Rate" };
+
+                if (data.Count == 0)
                 {
-                    // Convert ProductionRate to double and handle nullable type
-                    double productionRateValue = (double)(item.ProductionRate ?? 0);
-                    lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(item.MetricDate), productionRateValue));
+                    // Adding some test points if no real data is found
+                    lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now.AddDays(-2)), 50));
+                    lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now.AddDays(-1)), 75));
+                    lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), 100));
                 }
+                else
+                {
+                    foreach (var item in data)
+                    {
+                        double productionRateValue = (double)(item.ProductionRate ?? 0);
+                        lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(item.MetricDate), productionRateValue));
+                    }
+                }
+
+                // Configure the axes
+                var dateAxis = new DateTimeAxis
+                {
+                    Position = AxisPosition.Bottom,
+                    StringFormat = "MM/dd/yyyy",
+                    Title = "Date",
+                    IntervalType = DateTimeIntervalType.Days,
+                    MinorIntervalType = DateTimeIntervalType.Hours,
+                    IsZoomEnabled = true,
+                    IsPanEnabled = true
+                };
+
+                var valueAxis = new LinearAxis
+                {
+                    Position = AxisPosition.Left,
+                    Title = "Production Rate",
+                    IsZoomEnabled = true,
+                    IsPanEnabled = true
+                };
+
+                // Clear previous axes and series, then add the new ones
+                newPlotModel.Axes.Clear();
+                newPlotModel.Axes.Add(dateAxis);
+                newPlotModel.Axes.Add(valueAxis);
+                newPlotModel.Series.Clear();
+                newPlotModel.Series.Add(lineSeries);
+
+                // Set the updated PlotModel
+                PlotModel = newPlotModel;
+                PlotModel.InvalidatePlot(true); // Force refresh
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception while updating plot model: " + ex.Message);
             }
 
-            PlotModel.Series.Clear();
-            PlotModel.Series.Add(lineSeries);
             OnPropertyChanged(nameof(PlotModel));
         }
 
