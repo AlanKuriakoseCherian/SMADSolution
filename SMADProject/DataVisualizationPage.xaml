@@ -1,4 +1,4 @@
-﻿<Window x:Class="SMADProject.DataVisualizationPage"
+<Window x:Class="SMADProject.DataVisualizationPage"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SMADProject"
