@@ -1,0 +1,230 @@
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Input;
+using OxyPlot;
+using OxyPlot.Series;
+using OxyPlot.Axes;
+using System.Collections.Generic;
+
+namespace SMADProject.ViewModels
+{
+    public class DataVisualizationViewModel : INotifyPropertyChanged
+    {
+        private readonly IDataVisualizationRepo _repo;
+
+        private ObservableCollection<ProductionLine> _productionLines;
+        private ProductionLine _selectedProductionLine;
+        private DateTime? _startDate;
+        private DateTime? _endDate;
+        private PlotModel _plotModel;
+
+        public ObservableCollection<ProductionLine> ProductionLines
+        {
+            get => _productionLines;
+            set
+            {
+                _productionLines = value;
+                OnPropertyChanged(nameof(ProductionLines));
+            }
+        }
+
+        public ProductionLine SelectedProductionLine
+        {
+            get => _selectedProductionLine;
+            set
+            {
+                _selectedProductionLine = value;
+                OnPropertyChanged(nameof(SelectedProductionLine));
+            }
+        }
+
+        public DateTime? StartDate
+        {
+            get => _startDate;
+            set
+            {
+                _startDate = value;
+                OnPropertyChanged(nameof(StartDate));
+            }
+        }
+
+        public DateTime? EndDate
+        {
+            get => _endDate;
+            set
+            {
+                _endDate = value;
+                OnPropertyChanged(nameof(EndDate));
+            }
+        }
+
+        public PlotModel PlotModel
+        {
+            get => _plotModel;
+            set
+            {
+                _plotModel = value;
+                OnPropertyChanged(nameof(PlotModel));
+            }
+        }
+
+        public ICommand FilterCommand { get; }
+
+        public DataVisualizationViewModel(IDataVisualizationRepo repo)
+        {
+            _repo = repo;
+            ProductionLines = new ObservableCollection<ProductionLine>(_repo.GetProductionLines());
+            FilterCommand = new RelayCommand(param => FilterMetrics());
+        }
+
+        private void FilterMetrics()
+        {
+            var metrics = _repo.FilterMetrics(SelectedProductionLine, StartDate, EndDate);
+            UpdatePlotModel(metrics);
+        }
+
+        private void UpdatePlotModel(IEnumerable<ProductionMetric> metrics)
+        {
+            var plotModel = new PlotModel { Title = "Data Visualization Metrics" };
+
+            // Assuming you want to visualize ProductionRate and Efficiency
+            var productionRateSeries = new LineSeries { Title = "Production Rate" };
+            foreach (var metric in metrics)
+            {
+                productionRateSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.ProductionRate));
+            }
+            plotModel.Series.Add(productionRateSeries);
+
+            var efficiencySeries = new LineSeries { Title = "Efficiency (%)" };
+            foreach (var metric in metrics)
+            {
+                efficiencySeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.Efficiency));
+            }
+            plotModel.Series.Add(efficiencySeries);
+
+            PlotModel = plotModel;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+using SMADProject.ViewModels;
+using System.Windows;
+
+namespace SMADProject
+{
+    /// <summary>
+    /// Interaction logic for DataVisualizationPage.xaml
+    /// </summary>
+    public partial class DataVisualizationPage : Window
+    {
+        public DataVisualizationPage()
+        {
+            InitializeComponent();
+            this.DataContext = new DataVisualizationViewModel(new DataVisualizationRepo());
+        }
+    }
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+<Window x:Class="SMADProject.DataVisualizationPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SMADProject"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        Title="Data Visualization Page" Height="600" Width="800">
+    <Grid Margin="10">
+        <StackPanel Orientation="Vertical">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Text="Select Production Line:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox Width="150" 
+                          ItemsSource="{Binding ProductionLines}" 
+                          SelectedItem="{Binding SelectedProductionLine}" 
+                          DisplayMemberPath="LineName" 
+                          Margin="0,0,20,0"/>
+
+                <TextBlock Text="Start Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <DatePicker SelectedDate="{Binding StartDate}" Margin="0,0,20,0"/>
+
+                <TextBlock Text="End Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <DatePicker SelectedDate="{Binding EndDate}" Margin="0,0,20,0"/>
+
+                <Button Content="Filter" 
+                        Width="100" 
+                        Command="{Binding FilterCommand}" 
+                        Margin="0,0,0,0"/>
+            </StackPanel>
+
+            <oxy:PlotView Model="{Binding PlotModel}" Height="400" />
+        </StackPanel>
+    </Grid>
+</Window>
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SMADProject
+{
+    // IRepo.cs
+    public interface IDataVisualizationRepo
+    {
+        IEnumerable<ProductionLine> GetProductionLines();
+        IEnumerable<ProductionMetric> FilterMetrics(ProductionLine selectedLine, DateTime? startDate, DateTime? endDate);
+        // Add any other necessary method signatures here
+    }
+
+
+}
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// EFRepo.cs
+using SMADProject;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+public class DataVisualizationRepo : IDataVisualizationRepo
+{
+    public IEnumerable<ProductionLine> GetProductionLines()
+    {
+        using (var context = new SmadDbEntities())
+        {
+            return context.ProductionLines.ToList();
+        }
+    }
+
+    public IEnumerable<ProductionMetric> FilterMetrics(ProductionLine selectedLine, DateTime? startDate, DateTime? endDate)
+    {
+        using (var context = new SmadDbEntities())
+        {
+            var query = context.ProductionMetrics.AsQueryable();
+
+            if (selectedLine != null)
+            {
+                query = query.Where(m => m.LineID == selectedLine.LineID);
+            }
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(m => m.MetricDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(m => m.MetricDate <= endDate.Value);
+            }
+
+            return query.ToList();
+        }
+    }
+}
+
