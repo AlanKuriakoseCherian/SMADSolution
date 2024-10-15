@@ -1,0 +1,267 @@
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows;
+using System.Windows.Input;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+
+namespace SMADProject.ViewModels
+{
+    public class ProductionMonitoringViewModel : INotifyPropertyChanged
+    {
+        private ObservableCollection<ProductionMetric> _productionMetrics;
+        private ObservableCollection<ProductionLine> _productionLines;
+        private ProductionLine _selectedProductionLine;
+        private DateTime? _startDate;
+        private DateTime? _endDate;
+
+        private readonly IRepo _repo;
+
+        public ObservableCollection<ProductionMetric> ProductionMetrics
+        {
+            get => _productionMetrics;
+            set
+            {
+                _productionMetrics = value;
+                OnPropertyChanged(nameof(ProductionMetrics));
+            }
+        }
+
+        public ObservableCollection<ProductionLine> ProductionLines
+        {
+            get => _productionLines;
+            set
+            {
+                _productionLines = value;
+                OnPropertyChanged(nameof(ProductionLines));
+            }
+        }
+
+        private PlotModel _plotModel;
+        public PlotModel PlotModel
+        {
+            get => _plotModel;
+            set
+            {
+                _plotModel = value;
+                OnPropertyChanged(nameof(PlotModel));
+            }
+        }
+
+        public ProductionLine SelectedProductionLine
+        {
+            get => _selectedProductionLine;
+            set
+            {
+                _selectedProductionLine = value;
+                OnPropertyChanged(nameof(SelectedProductionLine));
+            }
+        }
+
+        public DateTime? StartDate
+        {
+            get => _startDate;
+            set
+            {
+                _startDate = value;
+                OnPropertyChanged(nameof(StartDate));
+            }
+        }
+
+        public DateTime? EndDate
+        {
+            get => _endDate;
+            set
+            {
+                _endDate = value;
+                OnPropertyChanged(nameof(EndDate));
+            }
+        }
+
+        public ICommand FilterCommand { get; }
+
+        public ProductionMonitoringViewModel()
+        {
+            _repo = new EFRepo(); // Initialize the EFRepo
+            ProductionMetrics = new ObservableCollection<ProductionMetric>();
+            ProductionLines = new ObservableCollection<ProductionLine>();
+
+            LoadProductionLines();
+            LoadProductionMetrics();
+
+            FilterCommand = new RelayCommand(param => FilterMetrics());
+        }
+
+        private void LoadProductionLines()
+        {
+            using (var context = new SmadDbEntities())
+            {
+                var lines = context.ProductionLines.ToList();
+                ProductionLines = new ObservableCollection<ProductionLine>(lines);
+            }
+        }
+
+        private void LoadProductionMetrics()
+        {
+            using (var context = new SmadDbEntities())
+            {
+                var metrics = context.ProductionMetrics.ToList();
+                ProductionMetrics = new ObservableCollection<ProductionMetric>(metrics);
+            }
+        }
+
+        private void FilterMetrics()
+        {
+            try
+            {
+                var filteredMetrics = _repo.FilterMetrics(SelectedProductionLine, StartDate, EndDate);
+                ProductionMetrics = new ObservableCollection<ProductionMetric>(filteredMetrics);
+                UpdatePlotModel();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred while filtering: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdatePlotModel()
+        {
+            var plotModel = new PlotModel { Title = "Production Metrics" };
+            var dateAxis = new DateTimeAxis
+            {
+                Position = AxisPosition.Bottom,
+                StringFormat = "dd-MM-yyyy",
+                Title = "Date"
+            };
+            plotModel.Axes.Add(dateAxis);
+
+            var productionRateSeries = new LineSeries { Title = "Production Rate" };
+            foreach (var metric in ProductionMetrics)
+            {
+                productionRateSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.ProductionRate));
+            }
+            plotModel.Series.Add(productionRateSeries);
+
+            var efficiencySeries = new LineSeries { Title = "Efficiency (%)" };
+            foreach (var metric in ProductionMetrics)
+            {
+                efficiencySeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.Efficiency));
+            }
+            plotModel.Series.Add(efficiencySeries);
+
+            PlotModel = plotModel;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+<Window x:Class="SMADProject.ProductionMonitoringPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SMADProject"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        mc:Ignorable="d"
+        Title="Production Monitoring Page" Height="600" Width="800">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="300"/>
+            <RowDefinition Height="300"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Grid.Row="0">
+            <TextBlock Text="Select Production Line:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <ComboBox Width="150" 
+                      ItemsSource="{Binding ProductionLines}" 
+                      SelectedItem="{Binding SelectedProductionLine}" 
+                      DisplayMemberPath="LineName" 
+                      Margin="0,0,20,0"/>
+
+            <TextBlock Text="Start Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding StartDate}" Margin="0,0,20,0"/>
+
+            <TextBlock Text="End Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <DatePicker SelectedDate="{Binding EndDate}" Margin="0,0,20,0"/>
+
+            <Button Content="Filter" 
+                    Width="100" 
+                    Command="{Binding FilterCommand}"/>
+        </StackPanel>
+
+        <DataGrid Name="ProductionMetricsDataGrid" 
+                  Grid.Row="1" 
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True" 
+                  ItemsSource="{Binding ProductionMetrics}" Margin="0,0,0,125" Grid.RowSpan="2">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Date" Binding="{Binding MetricDate}" Width="120"/>
+                <DataGridTextColumn Header="Production Rate" Binding="{Binding ProductionRate}" Width="120"/>
+                <DataGridTextColumn Header="Efficiency (%)" Binding="{Binding Efficiency}" Width="100"/>
+                <DataGridTextColumn Header="Quality Rate (%)" Binding="{Binding QualityRate}" Width="100"/>
+                <DataGridTextColumn Header="Downtime (hrs)" Binding="{Binding Downtime}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <oxy:PlotView Model="{Binding PlotModel}" Grid.Row="3" Margin="0,10,0,30" Visibility="Visible"/>
+
+    </Grid>
+</Window>
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+using System;
+using System.Collections.Generic;
+
+namespace SMADProject
+{
+    public interface IRepo
+    {
+        List<ProductionMetric> FilterMetrics(ProductionLine selectedProductionLine, DateTime? startDate, DateTime? endDate);
+    }
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+using System;
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.Linq;
+
+namespace SMADProject
+{
+    public class EFRepo : IRepo
+    {
+        public List<ProductionMetric> FilterMetrics(ProductionLine selectedProductionLine, DateTime? startDate, DateTime? endDate)
+        {
+            using (var context = new SmadDbEntities())
+            {
+                var query = context.ProductionMetrics.AsQueryable();
+
+                if (selectedProductionLine != null)
+                {
+                    query = query.Where(m => m.LineID == selectedProductionLine.LineID);
+                }
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(m => m.MetricDate >= startDate.Value);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(m => m.MetricDate <= endDate.Value);
+                }
+
+                return query.ToList();
+            }
+        }
+    }
+}
