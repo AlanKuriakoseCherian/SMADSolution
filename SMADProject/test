@@ -1,98 +1,51 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using SMAD.Entities;
-using SMAD.ViewModels;
-using SMAD.Repo;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-
-namespace SMADTests.ViewModels
-{
-    [TestClass]
-    public class ProductionPerformanceViewModelTests
-    {
-        private Mock<IProductionRepo> _repoMock;
-        private ProductionPerformanceViewModel _viewModel;
-
-        [TestInitialize]
-        public void Setup()
-        {
-            // Arrange: Mock the repository
-            _repoMock = new Mock<IProductionRepo>();
-
-            // Create a new ViewModel instance with the mocked repository
-            _viewModel = new ProductionPerformanceViewModel();
-        }
-
-        [TestMethod]
-        public void FilterMetrics_ValidInput_ShouldReturnFilteredMetrics()
-        {
-            // Arrange: Set up the mock data
-            var productionLine = new ProductionLine { LineID = 1, LineName = "Line 1" };
-            var startDate = new DateTime(2024, 10, 1);
-            var endDate = new DateTime(2024, 10, 10);
-
-            var mockMetrics = new List<ProductionMetric>
-            {
-                new ProductionMetric { LineID = 1, MetricDate = new DateTime(2024, 10, 2), ProductionRate = 50, Efficiency = 90 },
-                new ProductionMetric { LineID = 1, MetricDate = new DateTime(2024, 10, 5), ProductionRate = 70, Efficiency = 85 }
-            };
-
-            // Set up the repository to return the mock metrics
-            _repoMock.Setup(repo => repo.FilterMetrics(productionLine, startDate, endDate))
-                     .Returns(mockMetrics);
-
-            // Act: Set ViewModel properties and call the filter method
-            _viewModel.SelectedProductionLine = productionLine;
-            _viewModel.StartDate = startDate;
-            _viewModel.EndDate = endDate;
-            _viewModel.FilterMetrics();
-
-            // Assert: Check that the metrics were filtered correctly
-            Assert.AreEqual(2, _viewModel.ProductionMetrics.Count);
-            Assert.AreEqual(50, _viewModel.ProductionMetrics[0].ProductionRate);
-            Assert.AreEqual(70, _viewModel.ProductionMetrics[1].ProductionRate);
-        }
-
-        [TestMethod]
-        public void FilterMetrics_NoSelectedLine_ShouldShowErrorMessage()
-        {
-            // Act: Call the filter method without setting a production line
-            _viewModel.StartDate = new DateTime(2024, 10, 1);
-            _viewModel.EndDate = new DateTime(2024, 10, 10);
-
-            // Use a message box interceptor or simply check the default behavior.
-            try
-            {
-                _viewModel.FilterMetrics();
-                Assert.Fail("Expected an exception for missing production line selection.");
-            }
-            catch (Exception ex)
-            {
-                Assert.IsTrue(ex.Message.Contains("Please select a production line."));
-            }
-        }
-
-        [TestMethod]
-        public void FilterMetrics_InvalidDateRange_ShouldShowErrorMessage()
-        {
-            // Arrange: Set up an invalid date range
-            _viewModel.SelectedProductionLine = new ProductionLine { LineID = 1, LineName = "Line 1" };
-            _viewModel.StartDate = new DateTime(2024, 10, 10);
-            _viewModel.EndDate = new DateTime(2024, 10, 1); // End date is before start date
-
-            try
-            {
-                // Act: Call the filter method
-                _viewModel.FilterMetrics();
-                Assert.Fail("Expected an exception for invalid date range.");
-            }
-            catch (Exception ex)
-            {
-                // Assert: Verify the expected error message
-                Assert.IsTrue(ex.Message.Contains("Please select both start and end dates."));
-            }
-        }
-    }
-}
+Build started at 1:27 AM...
+1>------ Build started: Project: SMAD, Configuration: Debug Any CPU ------
+1>  SMAD -> C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\SMAD.exe
+2>------ Build started: Project: SMADTests, Configuration: Debug Any CPU ------
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: Found conflicts between different versions of "System.Memory" that could not be resolved.
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: There was a conflict between "System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" and "System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     "System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" was chosen because it was primary and "System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" was not.
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     References which depend on "System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" [C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Memory.4.5.4\lib\net461\System.Memory.dll].
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Memory.4.5.4\lib\net461\System.Memory.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Memory.4.5.4\lib\net461\System.Memory.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     References which depend on or have been unified to "System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" [C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies\System.Memory.dll].
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.ApplicationInsights.2.22.0\lib\net46\Microsoft.ApplicationInsights.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.ApplicationInsights.2.22.0\lib\net46\Microsoft.ApplicationInsights.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.ApplicationInsights, Version=2.22.0.997, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Testing.Extensions.Telemetry, Version=1.4.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Diagnostics.DiagnosticSource.6.0.1\lib\net461\System.Diagnostics.DiagnosticSource.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Diagnostics.DiagnosticSource.6.0.1\lib\net461\System.Diagnostics.DiagnosticSource.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             System.Diagnostics.DiagnosticSource, Version=6.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.ApplicationInsights, Version=2.22.0.997, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Testing.Extensions.Telemetry, Version=1.4.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies\System.Diagnostics.DiagnosticSource.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies\System.Diagnostics.DiagnosticSource.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Identity.Client, Version=4.65.0.0, Culture=neutral, PublicKeyToken=0a613f4dd989e8ae, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\SMAD.exe
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: Found conflicts between different versions of "System.Diagnostics.DiagnosticSource" that could not be resolved.
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277: There was a conflict between "System.Diagnostics.DiagnosticSource, Version=6.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" and "System.Diagnostics.DiagnosticSource, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     "System.Diagnostics.DiagnosticSource, Version=6.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" was chosen because it was primary and "System.Diagnostics.DiagnosticSource, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" was not.
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     References which depend on "System.Diagnostics.DiagnosticSource, Version=6.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" [C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Diagnostics.DiagnosticSource.6.0.1\lib\net461\System.Diagnostics.DiagnosticSource.dll].
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Diagnostics.DiagnosticSource.6.0.1\lib\net461\System.Diagnostics.DiagnosticSource.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\System.Diagnostics.DiagnosticSource.6.0.1\lib\net461\System.Diagnostics.DiagnosticSource.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             System.Diagnostics.DiagnosticSource, Version=6.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.ApplicationInsights, Version=2.22.0.997, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Testing.Extensions.Telemetry, Version=1.4.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.ApplicationInsights.2.22.0\lib\net46\Microsoft.ApplicationInsights.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.ApplicationInsights.2.22.0\lib\net46\Microsoft.ApplicationInsights.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.ApplicationInsights, Version=2.22.0.997, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Testing.Extensions.Telemetry, Version=1.4.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:     References which depend on or have been unified to "System.Diagnostics.DiagnosticSource, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" [C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies\System.Diagnostics.DiagnosticSource.dll].
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.Identity.Client.4.65.0\lib\net472\Microsoft.Identity.Client.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\packages\Microsoft.Identity.Client.4.65.0\lib\net472\Microsoft.Identity.Client.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             Microsoft.Identity.Client, Version=4.65.0.0, Culture=neutral, PublicKeyToken=0a613f4dd989e8ae, processorArchitecture=MSIL
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\Serilog.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\Serilog.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\SMAD.exe
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:         C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\Serilog.Sinks.Console.dll
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:           Project file item includes which caused reference "C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\Serilog.Sinks.Console.dll".
+2>C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\Microsoft.Common.CurrentVersion.targets(2412,5): warning MSB3277:             C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMAD\bin\Debug\SMAD.exe
+2>  SMADTests -> C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMADTests\bin\Debug\SMADTests.dll
+========== Build: 2 succeeded, 0 failed, 1 up-to-date, 0 skipped ==========
+========== Build completed at 1:27 AM and took 04.940 seconds ==========
