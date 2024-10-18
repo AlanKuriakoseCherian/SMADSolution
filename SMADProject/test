@@ -258,3 +258,112 @@ namespace SMAD.ViewModels
         }
     }
 }
+------------------------------------------------------------------------------------------------------------------------------------
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
+using System;
+using System.Collections.ObjectModel;
+using System.Windows;
+using SMAD.ViewModels;
+using SMAD.Entities;
+using SMAD.Repo;
+
+namespace SMAD.Tests
+{
+    [TestClass]
+    public class UserViewModelTests
+    {
+        private Mock<IUserRepo> _mockRepo;
+        private UserViewModel _viewModel;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            _mockRepo = new Mock<IUserRepo>();
+            _viewModel = new UserViewModel
+            {
+                // Set a mock repository for dependency injection
+                _repo = _mockRepo.Object
+            };
+        }
+
+        [TestMethod]
+        public void Create_Should_Create_New_User_When_Confirmed()
+        {
+            // Arrange
+            _viewModel.NewUser = new User
+            {
+                Username = "testuser",
+                PasswordHash = "testpassword",
+                Role = "user"
+            };
+
+            _mockRepo.Setup(repo => repo.Create(It.IsAny<User>())).Verifiable();
+
+            // Act
+            _viewModel.CreateCommand.Execute(null);
+
+            // Assert
+            _mockRepo.Verify(repo => repo.Create(It.IsAny<User>()), Times.Once);
+            Assert.IsTrue(_viewModel.Users.Count > 0);
+        }
+
+        [TestMethod]
+        public void Update_Should_Update_Selected_User_When_Confirmed()
+        {
+            // Arrange
+            var user = new User
+            {
+                UserID = 1,
+                Username = "existingUser"
+            };
+            _viewModel.SelectedUser = user;
+            _mockRepo.Setup(repo => repo.Update(It.IsAny<User>())).Verifiable();
+
+            // Act
+            _viewModel.UpdateCommand.Execute(null);
+
+            // Assert
+            _mockRepo.Verify(repo => repo.Update(It.IsAny<User>()), Times.Once);
+        }
+
+        [TestMethod]
+        public void Delete_Should_Delete_Selected_User_When_Confirmed()
+        {
+            // Arrange
+            var user = new User
+            {
+                UserID = 1,
+                Username = "userToDelete"
+            };
+            _viewModel.SelectedUser = user;
+            _mockRepo.Setup(repo => repo.Delete(It.IsAny<User>())).Verifiable();
+
+            // Act
+            _viewModel.DeleteCommand.Execute(null);
+
+            // Assert
+            _mockRepo.Verify(repo => repo.Delete(It.IsAny<User>()), Times.Once);
+        }
+
+        [TestMethod]
+        public void Login_Should_Authenticate_User_When_Credentials_Are_Correct()
+        {
+            // Arrange
+            var user = new User
+            {
+                Username = "testuser",
+                PasswordHash = "testpassword"
+            };
+            _viewModel.CurrentUser = user;
+
+            _mockRepo.Setup(repo => repo.Login(It.IsAny<User>())).Verifiable();
+
+            // Act
+            _viewModel.LoginCommand.Execute(null);
+
+            // Assert
+            _mockRepo.Verify(repo => repo.Login(It.IsAny<User>()), Times.Once);
+        }
+    }
+}
