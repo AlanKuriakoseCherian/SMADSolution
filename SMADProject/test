@@ -1,372 +1,235 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
+using System.ComponentModel;
+using System.Linq;
 using System.Text;
-using System.Windows;
-using System.Windows.Input;
-using SMAD.Entities;
+using System.Threading.Tasks;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot;
+using SMAD.EFRepo;
 using SMAD.Repo;
+using System.Windows.Input;
+using System.Windows;
+using SMAD.Entities;
 using Serilog; // Include Serilog for logging
-using System.Diagnostics;
-using SMAD.EFRepo; // Include this for StackTrace
+using System.Diagnostics; // Include this for StackTrace
 
 namespace SMAD.ViewModels
 {
     /// <summary>
-    /// ViewModel for managing user accounts.
-    /// This ViewModel handles user creation, login, update, and deletion.
+    /// ViewModel for monitoring production performance metrics.
+    /// This ViewModel handles loading production lines and metrics,
+    /// filtering metrics based on selected criteria, and updating
+    /// the plot model for visualization.
     /// </summary>
-    public delegate void DWindoClose();
-
-    public class UserViewModel : ViewModelBase1
+    public class ProductionPerformanceViewModel : ViewModelBase1
     {
-        public DWindoClose WindowClose;
-        public DWindoClose EditWindowClose;
+        private ObservableCollection<ProductionMetric> _productionMetrics;
+        private ObservableCollection<ProductionLine> _productionLines;
+        private ProductionLine _selectedProductionLine;
+        private DateTime? _startDate;
+        private DateTime? _endDate;
 
-        private readonly IUserRepo _repo = EFUserRepo.Instance;
-
-        private User _newUser;
-        private User _selectedUser;
-        private User _currentUser;
-        private ObservableCollection<User> _users;
+        private readonly IProductionRepo _repo;
 
         /// <summary>
-        /// Gets or sets the new user to be created.
+        /// Gets or sets the collection of production metrics.
         /// </summary>
-        public User NewUser
+        public ObservableCollection<ProductionMetric> ProductionMetrics
         {
-            get { return _newUser; }
+            get => _productionMetrics;
             set
             {
-                _newUser = value;
-                OnPropertyChanged(nameof(NewUser));
+                _productionMetrics = value;
+                OnPropertyChanged(nameof(ProductionMetrics));
             }
         }
 
         /// <summary>
-        /// Gets or sets the selected user for updates or deletion.
+        /// Gets or sets the collection of production lines.
         /// </summary>
-        public User SelectedUser
+        public ObservableCollection<ProductionLine> ProductionLines
         {
-            get { return _selectedUser; }
+            get => _productionLines;
             set
             {
-                _selectedUser = value;
-                OnPropertyChanged(nameof(SelectedUser));
+                _productionLines = value;
+                OnPropertyChanged(nameof(ProductionLines));
+            }
+        }
+
+        private PlotModel _plotModel;
+
+        /// <summary>
+        /// Gets or sets the plot model used for visualizing production metrics.
+        /// </summary>
+        public PlotModel PlotModel
+        {
+            get => _plotModel;
+            set
+            {
+                _plotModel = value;
+                OnPropertyChanged(nameof(PlotModel));
             }
         }
 
         /// <summary>
-        /// Gets or sets the current user for login purposes.
+        /// Gets or sets the selected production line for filtering metrics.
         /// </summary>
-        public User CurrentUser
+        public ProductionLine SelectedProductionLine
         {
-            get { return _currentUser; }
+            get => _selectedProductionLine;
             set
             {
-                _currentUser = value;
-                OnPropertyChanged(nameof(CurrentUser));
+                _selectedProductionLine = value;
+                OnPropertyChanged(nameof(SelectedProductionLine));
             }
         }
 
         /// <summary>
-        /// Gets or sets the collection of users.
+        /// Gets or sets the start date for filtering metrics.
         /// </summary>
-        public ObservableCollection<User> Users
+        public DateTime? StartDate
         {
-            get { return _users; }
+            get => _startDate;
             set
             {
-                _users = value;
-                OnPropertyChanged(nameof(Users));
+                _startDate = value;
+                OnPropertyChanged(nameof(StartDate));
             }
         }
 
-        public ICommand CreateCommand { get; set; }
-        public ICommand LoginCommand { get; set; }
-        public ICommand UpdateCommand { get; set; }
-        public ICommand DeleteCommand { get; set; }
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="User ViewModel"/> class.
+        /// Gets or sets the end date for filtering metrics.
         /// </summary>
-        public UserViewModel()
+        public DateTime? EndDate
         {
-            NewUser = new User
+            get => _endDate;
+            set
             {
-                Username = "",
-                PasswordHash = "",
-                Role = "",
-                CreatedAt = DateTime.Now,
-                LastLogin = DateTime.Now,
-            };
-
-            CurrentUser = new User
-            {
-                Username = "",
-                PasswordHash = ""
-            };
-
-            LoadUsers();
-            CreateCommand = new RelayCommand(Create);
-            LoginCommand = new RelayCommand(Login);
-            UpdateCommand = new RelayCommand(Update);
-            DeleteCommand = new RelayCommand(Delete);
+                _endDate = value;
+                OnPropertyChanged(nameof(EndDate));
+            }
         }
 
         /// <summary>
-        /// Deletes the selected user after confirmation.
+        /// Command to execute the filtering of metrics.
         /// </summary>
-        public void Delete()
+        public ICommand FilterCommand { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ProductionPerformanceViewModel"/> class.
+        /// </summary>
+        public ProductionPerformanceViewModel()
         {
-            if (SelectedUser == null)
+            _repo = new EFProductionMonitoringRepo(); // Initialize the EFRepo
+            ProductionMetrics = new ObservableCollection<ProductionMetric>();
+            ProductionLines = new ObservableCollection<ProductionLine>();
+
+            LoadProductionLines();
+            LoadProductionMetrics();
+
+            FilterCommand = new RelayCommand1(param => FilterMetrics());
+        }
+
+        /// <summary>
+        /// Loads production lines from the database and populates the ProductionLines collection.
+        /// </summary>
+        private void LoadProductionLines()
+        {
+            using (var context = new SmadDbEntities())
             {
-                MessageBox.Show("Please select the user to delete.", "Alert", MessageBoxButton.OK, MessageBoxImage.Information);
+                var lines = context.ProductionLines.ToList();
+                ProductionLines = new ObservableCollection<ProductionLine>(lines);
+            }
+        }
+
+        /// <summary>
+        /// Loads production metrics from the database and populates the ProductionMetrics collection.
+        /// </summary>
+        private void LoadProductionMetrics()
+        {
+            using (var context = new SmadDbEntities())
+            {
+                var metrics = context.ProductionMetrics.ToList();
+                ProductionMetrics = new ObservableCollection<ProductionMetric>(metrics);
+            }
+        }
+
+        /// <summary>
+        /// Filters metrics based on the selected production line and date range.
+        /// </summary>
+        private void FilterMetrics()
+        {
+            // Check if a line is selected
+            if (SelectedProductionLine == null)
+            {
+                MessageBox.Show("Please select a production line.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            var res = MessageBox.Show("Are you sure to delete this user?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res != MessageBoxResult.Yes) return;
+            // Check if start and end dates are selected
+            if (StartDate == null || EndDate == null)
+            {
+                MessageBox.Show("Please select both start and end dates.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
             try
             {
-                _repo.Delete(SelectedUser);
-                MessageBox.Show($"User  {SelectedUser.UserID} deleted successfully.", "Alert", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadUsers();
+                var filteredMetrics = _repo.FilterMetrics(SelectedProductionLine, StartDate, EndDate);
+                ProductionMetrics = new ObservableCollection<ProductionMetric>(filteredMetrics);
+                UpdatePlotModel();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error deleting user. Stack Trace: {StackTrace}", new StackTrace(ex, true).ToString());
-                MessageBox.Show($"Error deleting user: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Capture the stack trace
+                var stackTrace = new StackTrace(ex, true);
+                Log.Error(ex, "Error filtering metrics. Stack Trace: {StackTrace}", stackTrace.ToString());
+                MessageBox.Show($"An error occurred while filtering: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// Updates the selected user after confirmation.
+        /// Updates the plot model with the filtered metrics.
         /// </summary>
-        private void Update()
+        private void UpdatePlotModel()
         {
-            if (SelectedUser == null) return;
-
-            var res = MessageBox.Show("Are you sure to update this user?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res != MessageBoxResult.Yes) return;
-
-            try
+            var plotModel = new PlotModel { Title = "Production Metrics" };
+            var dateAxis = new DateTimeAxis
             {
-                _repo.Update(SelectedUser);
-                MessageBox.Show($"User  {SelectedUser.UserID} updated successfully.", "Alert", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadUsers();
-                EditWindowClose?.Invoke();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error updating user. Stack Trace: {StackTrace}", new StackTrace(ex, true).ToString());
-                MessageBox.Show($"Error updating user: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Loads all users from the repository.
-        /// </summary>
-        public void LoadUsers()
-        {
-            Users = _repo.ReadAll();
-        }
-
-        /// <summary>
-        /// Hashes the password for the new user.
-        /// </summary>
-        public void HashPassword()
-        {
-            string password = NewUser.PasswordHash;
-            using (MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider())
-            {
-                byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-                byte[] hashBytes = md5.ComputeHash(passwordBytes);
-
-                string hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
-
-                NewUser.PasswordHash = hashString;
-            }
-        }
-
-        /// <summary>
-        /// Creates a new user after confirmation.
-        /// </summary>
-        private void Create()
-        {
-            HashPassword();
-            var newUser = new User
-            {
-                Username = NewUser.Username,
-                PasswordHash = NewUser.PasswordHash,
-                Role = NewUser.Role,
-                CreatedAt = DateTime.Now,
-                LastLogin = DateTime.Now,
+                Position = AxisPosition.Bottom,
+                StringFormat = "dd-MM-yyyy",
+                Title = "Date"
             };
+            plotModel.Axes.Add(dateAxis);
 
-            try
+            // Add the Production Rate axis (Y-axis)
+            var productionRateAxis = new LinearAxis
             {
-                var result = MessageBox.Show("Are you sure to create?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result != MessageBoxResult.Yes) return;
+                Position = AxisPosition.Left,
+                Title = "Production Rate"
+            };
+            plotModel.Axes.Add(productionRateAxis);
 
-                _repo.Create(newUser);
-                MessageBox.Show("Created successfully.", "Alert", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadUsers();
-                WindowClose?.Invoke();
-            }
-            catch (Exception ex)
+            var productionRateSeries = new LineSeries { Title = "Production Rate" };
+            foreach (var metric in ProductionMetrics)
             {
-                Log.Error(ex, "Error creating user. Stack Trace: {StackTrace}", new StackTrace(ex, true).ToString());
-                MessageBox.Show($"Error creating user: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                productionRateSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.ProductionRate));
             }
-        }
+            plotModel.Series.Add(productionRateSeries);
 
-        /// <summary>
-        /// Checks if the current user can login.
-        /// </summary>
-        public bool CanLogin()
-        {
-            return CurrentUser.Username.Length > 0 && CurrentUser.PasswordHash.Length > 0;
-        }
-
-        /// <summary>
-        /// Logs in the current user.
-        /// </summary>
-        private void Login()
-        {
-            try
+            var efficiencySeries = new LineSeries { Title = "Efficiency (%)" };
+            foreach (var metric in ProductionMetrics)
             {
-                _repo.Login(CurrentUser);
-                MessageBox.Show("Login successful.");
+                efficiencySeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.Efficiency));
+            }
+            plotModel.Series.Add(efficiencySeries);
 
-                if (CurrentUser.Username == "admin88")
-                {
-                    SmadConfig.adminDashboardWindow.Show();
-                }
-                else
-                {
-                    SmadConfig.homeDashboardWindow.Show();
-                }
-                WindowClose?.Invoke();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error logging in. Stack Trace: {StackTrace}", new StackTrace(ex, true).ToString());
-                MessageBox.Show($"Error logging in: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            // Update the PlotModel property
+            PlotModel = plotModel;
         }
     }
 }
-------------------------------------------------------------------------------------------------------------------------------------
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using System;
-using System.Collections.ObjectModel;
-using System.Windows;
-using SMAD.ViewModels;
-using SMAD.Entities;
-using SMAD.Repo;
-
-namespace SMAD.Tests
-{
-    [TestClass]
-    public class UserViewModelTests
-    {
-        private Mock<IUserRepo> _mockRepo;
-        private UserViewModel _viewModel;
-
-        [TestInitialize]
-        public void Setup()
-        {
-            _mockRepo = new Mock<IUserRepo>();
-            _viewModel = new UserViewModel
-            {
-                // Set a mock repository for dependency injection
-                _repo = _mockRepo.Object
-            };
-        }
-
-        [TestMethod]
-        public void Create_Should_Create_New_User_When_Confirmed()
-        {
-            // Arrange
-            _viewModel.NewUser = new User
-            {
-                Username = "testuser",
-                PasswordHash = "testpassword",
-                Role = "user"
-            };
-
-            _mockRepo.Setup(repo => repo.Create(It.IsAny<User>())).Verifiable();
-
-            // Act
-            _viewModel.CreateCommand.Execute(null);
-
-            // Assert
-            _mockRepo.Verify(repo => repo.Create(It.IsAny<User>()), Times.Once);
-            Assert.IsTrue(_viewModel.Users.Count > 0);
-        }
-
-        [TestMethod]
-        public void Update_Should_Update_Selected_User_When_Confirmed()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserID = 1,
-                Username = "existingUser"
-            };
-            _viewModel.SelectedUser = user;
-            _mockRepo.Setup(repo => repo.Update(It.IsAny<User>())).Verifiable();
-
-            // Act
-            _viewModel.UpdateCommand.Execute(null);
-
-            // Assert
-            _mockRepo.Verify(repo => repo.Update(It.IsAny<User>()), Times.Once);
-        }
-
-        [TestMethod]
-        public void Delete_Should_Delete_Selected_User_When_Confirmed()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserID = 1,
-                Username = "userToDelete"
-            };
-            _viewModel.SelectedUser = user;
-            _mockRepo.Setup(repo => repo.Delete(It.IsAny<User>())).Verifiable();
-
-            // Act
-            _viewModel.DeleteCommand.Execute(null);
-
-            // Assert
-            _mockRepo.Verify(repo => repo.Delete(It.IsAny<User>()), Times.Once);
-        }
-
-        [TestMethod]
-        public void Login_Should_Authenticate_User_When_Credentials_Are_Correct()
-        {
-            // Arrange
-            var user = new User
-            {
-                Username = "testuser",
-                PasswordHash = "testpassword"
-            };
-            _viewModel.CurrentUser = user;
-
-            _mockRepo.Setup(repo => repo.Login(It.IsAny<User>())).Verifiable();
-
-            // Act
-            _viewModel.LoginCommand.Execute(null);
-
-            // Assert
-            _mockRepo.Verify(repo => repo.Login(It.IsAny<User>()), Times.Once);
-        }
-    }
-}
------------------
-Severity	Code	Description	Project	File	Line	Suppression State
-Error (active)	CS0191	A readonly field cannot be assigned to (except in a constructor or init-only setter of the type in which the field is defined or a variable initializer)	SMADTests	C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMADTests\ViewModels\UserViewModelTests.cs	25	
