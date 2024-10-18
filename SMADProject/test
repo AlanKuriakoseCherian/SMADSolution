@@ -1,235 +1,98 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
+using SMAD.Entities;
+using SMAD.ViewModels;
+using SMAD.Repo;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using OxyPlot.Axes;
-using OxyPlot.Series;
-using OxyPlot;
-using SMAD.EFRepo;
-using SMAD.Repo;
-using System.Windows.Input;
-using System.Windows;
-using SMAD.Entities;
-using Serilog; // Include Serilog for logging
-using System.Diagnostics; // Include this for StackTrace
 
-namespace SMAD.ViewModels
+namespace SMADTests.ViewModels
 {
-    /// <summary>
-    /// ViewModel for monitoring production performance metrics.
-    /// This ViewModel handles loading production lines and metrics,
-    /// filtering metrics based on selected criteria, and updating
-    /// the plot model for visualization.
-    /// </summary>
-    public class ProductionPerformanceViewModel : ViewModelBase1
+    [TestClass]
+    public class ProductionPerformanceViewModelTests
     {
-        private ObservableCollection<ProductionMetric> _productionMetrics;
-        private ObservableCollection<ProductionLine> _productionLines;
-        private ProductionLine _selectedProductionLine;
-        private DateTime? _startDate;
-        private DateTime? _endDate;
+        private Mock<IProductionRepo> _repoMock;
+        private ProductionPerformanceViewModel _viewModel;
 
-        private readonly IProductionRepo _repo;
-
-        /// <summary>
-        /// Gets or sets the collection of production metrics.
-        /// </summary>
-        public ObservableCollection<ProductionMetric> ProductionMetrics
+        [TestInitialize]
+        public void Setup()
         {
-            get => _productionMetrics;
-            set
-            {
-                _productionMetrics = value;
-                OnPropertyChanged(nameof(ProductionMetrics));
-            }
+            // Arrange: Mock the repository
+            _repoMock = new Mock<IProductionRepo>();
+
+            // Create a new ViewModel instance with the mocked repository
+            _viewModel = new ProductionPerformanceViewModel();
         }
 
-        /// <summary>
-        /// Gets or sets the collection of production lines.
-        /// </summary>
-        public ObservableCollection<ProductionLine> ProductionLines
+        [TestMethod]
+        public void FilterMetrics_ValidInput_ShouldReturnFilteredMetrics()
         {
-            get => _productionLines;
-            set
+            // Arrange: Set up the mock data
+            var productionLine = new ProductionLine { LineID = 1, LineName = "Line 1" };
+            var startDate = new DateTime(2024, 10, 1);
+            var endDate = new DateTime(2024, 10, 10);
+
+            var mockMetrics = new List<ProductionMetric>
             {
-                _productionLines = value;
-                OnPropertyChanged(nameof(ProductionLines));
-            }
+                new ProductionMetric { LineID = 1, MetricDate = new DateTime(2024, 10, 2), ProductionRate = 50, Efficiency = 90 },
+                new ProductionMetric { LineID = 1, MetricDate = new DateTime(2024, 10, 5), ProductionRate = 70, Efficiency = 85 }
+            };
+
+            // Set up the repository to return the mock metrics
+            _repoMock.Setup(repo => repo.FilterMetrics(productionLine, startDate, endDate))
+                     .Returns(mockMetrics);
+
+            // Act: Set ViewModel properties and call the filter method
+            _viewModel.SelectedProductionLine = productionLine;
+            _viewModel.StartDate = startDate;
+            _viewModel.EndDate = endDate;
+            _viewModel.FilterMetrics();
+
+            // Assert: Check that the metrics were filtered correctly
+            Assert.AreEqual(2, _viewModel.ProductionMetrics.Count);
+            Assert.AreEqual(50, _viewModel.ProductionMetrics[0].ProductionRate);
+            Assert.AreEqual(70, _viewModel.ProductionMetrics[1].ProductionRate);
         }
 
-        private PlotModel _plotModel;
-
-        /// <summary>
-        /// Gets or sets the plot model used for visualizing production metrics.
-        /// </summary>
-        public PlotModel PlotModel
+        [TestMethod]
+        public void FilterMetrics_NoSelectedLine_ShouldShowErrorMessage()
         {
-            get => _plotModel;
-            set
-            {
-                _plotModel = value;
-                OnPropertyChanged(nameof(PlotModel));
-            }
-        }
+            // Act: Call the filter method without setting a production line
+            _viewModel.StartDate = new DateTime(2024, 10, 1);
+            _viewModel.EndDate = new DateTime(2024, 10, 10);
 
-        /// <summary>
-        /// Gets or sets the selected production line for filtering metrics.
-        /// </summary>
-        public ProductionLine SelectedProductionLine
-        {
-            get => _selectedProductionLine;
-            set
-            {
-                _selectedProductionLine = value;
-                OnPropertyChanged(nameof(SelectedProductionLine));
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the start date for filtering metrics.
-        /// </summary>
-        public DateTime? StartDate
-        {
-            get => _startDate;
-            set
-            {
-                _startDate = value;
-                OnPropertyChanged(nameof(StartDate));
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the end date for filtering metrics.
-        /// </summary>
-        public DateTime? EndDate
-        {
-            get => _endDate;
-            set
-            {
-                _endDate = value;
-                OnPropertyChanged(nameof(EndDate));
-            }
-        }
-
-        /// <summary>
-        /// Command to execute the filtering of metrics.
-        /// </summary>
-        public ICommand FilterCommand { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ProductionPerformanceViewModel"/> class.
-        /// </summary>
-        public ProductionPerformanceViewModel()
-        {
-            _repo = new EFProductionMonitoringRepo(); // Initialize the EFRepo
-            ProductionMetrics = new ObservableCollection<ProductionMetric>();
-            ProductionLines = new ObservableCollection<ProductionLine>();
-
-            LoadProductionLines();
-            LoadProductionMetrics();
-
-            FilterCommand = new RelayCommand1(param => FilterMetrics());
-        }
-
-        /// <summary>
-        /// Loads production lines from the database and populates the ProductionLines collection.
-        /// </summary>
-        private void LoadProductionLines()
-        {
-            using (var context = new SmadDbEntities())
-            {
-                var lines = context.ProductionLines.ToList();
-                ProductionLines = new ObservableCollection<ProductionLine>(lines);
-            }
-        }
-
-        /// <summary>
-        /// Loads production metrics from the database and populates the ProductionMetrics collection.
-        /// </summary>
-        private void LoadProductionMetrics()
-        {
-            using (var context = new SmadDbEntities())
-            {
-                var metrics = context.ProductionMetrics.ToList();
-                ProductionMetrics = new ObservableCollection<ProductionMetric>(metrics);
-            }
-        }
-
-        /// <summary>
-        /// Filters metrics based on the selected production line and date range.
-        /// </summary>
-        private void FilterMetrics()
-        {
-            // Check if a line is selected
-            if (SelectedProductionLine == null)
-            {
-                MessageBox.Show("Please select a production line.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            // Check if start and end dates are selected
-            if (StartDate == null || EndDate == null)
-            {
-                MessageBox.Show("Please select both start and end dates.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
+            // Use a message box interceptor or simply check the default behavior.
             try
             {
-                var filteredMetrics = _repo.FilterMetrics(SelectedProductionLine, StartDate, EndDate);
-                ProductionMetrics = new ObservableCollection<ProductionMetric>(filteredMetrics);
-                UpdatePlotModel();
+                _viewModel.FilterMetrics();
+                Assert.Fail("Expected an exception for missing production line selection.");
             }
             catch (Exception ex)
             {
-                // Capture the stack trace
-                var stackTrace = new StackTrace(ex, true);
-                Log.Error(ex, "Error filtering metrics. Stack Trace: {StackTrace}", stackTrace.ToString());
-                MessageBox.Show($"An error occurred while filtering: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Assert.IsTrue(ex.Message.Contains("Please select a production line."));
             }
         }
 
-        /// <summary>
-        /// Updates the plot model with the filtered metrics.
-        /// </summary>
-        private void UpdatePlotModel()
+        [TestMethod]
+        public void FilterMetrics_InvalidDateRange_ShouldShowErrorMessage()
         {
-            var plotModel = new PlotModel { Title = "Production Metrics" };
-            var dateAxis = new DateTimeAxis
-            {
-                Position = AxisPosition.Bottom,
-                StringFormat = "dd-MM-yyyy",
-                Title = "Date"
-            };
-            plotModel.Axes.Add(dateAxis);
+            // Arrange: Set up an invalid date range
+            _viewModel.SelectedProductionLine = new ProductionLine { LineID = 1, LineName = "Line 1" };
+            _viewModel.StartDate = new DateTime(2024, 10, 10);
+            _viewModel.EndDate = new DateTime(2024, 10, 1); // End date is before start date
 
-            // Add the Production Rate axis (Y-axis)
-            var productionRateAxis = new LinearAxis
+            try
             {
-                Position = AxisPosition.Left,
-                Title = "Production Rate"
-            };
-            plotModel.Axes.Add(productionRateAxis);
-
-            var productionRateSeries = new LineSeries { Title = "Production Rate" };
-            foreach (var metric in ProductionMetrics)
-            {
-                productionRateSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.ProductionRate));
+                // Act: Call the filter method
+                _viewModel.FilterMetrics();
+                Assert.Fail("Expected an exception for invalid date range.");
             }
-            plotModel.Series.Add(productionRateSeries);
-
-            var efficiencySeries = new LineSeries { Title = "Efficiency (%)" };
-            foreach (var metric in ProductionMetrics)
+            catch (Exception ex)
             {
-                efficiencySeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(metric.MetricDate), (double)metric.Efficiency));
+                // Assert: Verify the expected error message
+                Assert.IsTrue(ex.Message.Contains("Please select both start and end dates."));
             }
-            plotModel.Series.Add(efficiencySeries);
-
-            // Update the PlotModel property
-            PlotModel = plotModel;
         }
     }
 }
