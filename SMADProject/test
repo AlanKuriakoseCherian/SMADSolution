@@ -367,3 +367,6 @@ namespace SMAD.Tests
         }
     }
 }
+-----------------
+Severity	Code	Description	Project	File	Line	Suppression State
+Error (active)	CS0191	A readonly field cannot be assigned to (except in a constructor or init-only setter of the type in which the field is defined or a variable initializer)	SMADTests	C:\Users\2021532\C2504_cs\c2504_cs\SMAD\SMADSln\SMADTests\ViewModels\UserViewModelTests.cs	25	
